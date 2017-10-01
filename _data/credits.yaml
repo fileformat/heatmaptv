@@ -1,0 +1,81 @@
+- name: Alertify.js
+  description: Status and error messages
+  url: http://alertifyjs.com/
+
+- name: async.js
+  description: utilities for asynchronous JavaScript
+  url: https://github.com/caolan/async
+
+- name: Bootstrap
+  description: HTML/CSS Framework
+  url: http://getbootstrap.com/
+  id: getbootstrap
+
+- name: CloudFlare
+  description: CDN
+  url: https://www.cloudflare.com/
+  id: cloudflare
+
+- name: DayNightOverlay
+  description: Google Maps overlay to show daytime/nighttime
+  url: https://github.com/marmat/google-maps-api-addons
+
+- name: Font Awesome
+  description: Icon font
+  url: https://fortawesome.github.io/Font-Awesome/
+  id: font-awesome
+
+- name: git
+  description: Version control
+  url: https://git-scm.com/
+  id: git-scm
+
+- name: Github
+  description: git hosting
+  url: https://www.github.com/
+  id: github
+
+- name: Google Analytics
+  description: Tracking data
+  url: http://www.google.com/analytics/
+  id: google_analytics
+
+- name: Google Maps
+  description: the map!
+  url: http://www.google.com/maps
+  id: google
+
+- name: Jekyll
+  description: Static site generator
+  url: https://jekyllrb.com/
+  id: jekyllrb
+
+- name: jQuery
+  description: JavaScript library
+  url: https://jquery.com/
+  id: jquery
+
+- name: Noah Marcuse
+  description: logo and favicon
+  url: http://noah.marcuse.ink/
+
+- name: Travis-CI
+  description: continuous integration and deployment
+  url: https://travis-ci.org/
+  id: travis-ci
+
+- name: W3C Markup Validation Service
+  description: HTML file validation
+  url: https://validator.w3.org/
+  id: w3c_validator
+
+- name: Wikimedia Commons
+  description: Animated spinner
+  url: https://commons.wikimedia.org/wiki/File:Android_style_loader.gif
+  id: wikimedia_commons
+
+- name: Wufoo
+  description: Contact form
+  url: http://www.wufoo.com/
+  id: wufoo
+

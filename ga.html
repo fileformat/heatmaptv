@@ -1,0 +1,600 @@
+---
+title: Google Analytics
+h1: Google Analytics Heatmap
+noadsense: true
+---
+<!-- CSS -->
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.11.0/build/css/alertify.min.css"/>
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.11.0/build/css/themes/bootstrap.min.css"/>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  #map {
+    position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+  }
+  .margin10 { margin: 10px; }
+  .gauth { margin: 10px; }
+    #total_count { font-size: 25px; font-weight: bold; color: black; margin: 10px;
+        text-shadow: 0 0 0.2em #fff, 0 0 0.2em #fff,
+        0 0 0.2em #fff}
+</style>
+
+<!-- scripts -->
+<script src="https://code.jquery.com/jquery-3.1.0.js" integrity="sha256-slogkvB1K3VOkzAI8QITxV3VzpOnkeNVsKvtkYLMjfk=" crossorigin="anonymous"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{site.google_maps_api_key}}&libraries=visualization" type="text/javascript"></script>
+<script src="js/async.js"></script>
+<script src="js/daynightoverlay.js"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="//cdn.jsdelivr.net/npm/alertifyjs@1.11.0/build/alertify.min.js"></script>
+<script type="text/javascript">
+    alertify.defaults.transition = "fade";
+</script>
+<script>
+    
+    var context = {};
+    context.CLIENT_ID = '{{site.google_client_id}}';
+    context.SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+    
+    function initContext(cb) {
+        console.log("DEBUG: initContext()");
+        context.selected_profiles = JSON.parse(localStorage.getItem("selected_profiles") || "[]");
+        context.total_location = localStorage.getItem("total_location") || "TOP_CENTER";
+        context.night_opacity = localStorage.getItem("night_opacity") || "0.25";
+        context.show_status = localStorage.getItem("show_status") || "N";
+        if (cb != null) {
+            cb(null);
+        }
+    }
+    
+    function initGoogleApiLoad(cb) {
+        console.log("DEBUG: initGoogleApiLoad started");
+        gapi.load("client:auth2", function() {
+            console.log("INFO: initGoogleApiLoad complete");
+            cb();
+        });
+    }
+    
+    function initGoogleApiInit(cb) {
+        console.log("DEBUG: initGoogleApiInit started");
+        gapi.client.init({
+                apiKey: '{{site.google_maps_api_key}}',
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/analytics/v3/rest'],
+                clientId: context.CLIENT_ID,
+                scope: context.SCOPE
+            }).then(function () {
+                console.log("INFO: initGoogleApiInit complete", gapi.auth2.getAuthInstance());
+                gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+                // Handle the initial sign-in state.
+                updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+
+                cb();
+            });
+    }
+    
+    function onLoginClick(event) {
+        console.log("INFO: onLoginClick");
+        ga('send', { hitType: 'event', eventCategory: 'User', eventAction: 'click', eventLabel: 'login' });
+        gapi.auth2.getAuthInstance().signIn( { "prompt": "select_account"});
+    }
+
+    function onLogoutClick(event) {
+        console.log("INFO: onLogoutClick");
+        ga('send', { hitType: 'event', eventCategory: 'User', eventAction: 'click', eventLabel: 'logout' });
+        gapi.auth2.getAuthInstance().signOut();
+        delete context.profiles;
+        $("#profile_list").empty();
+        return false;
+    }
+    
+    function updateSigninStatus(isSignedIn) {
+        console.log("INFO: updateSignInStatus: " + isSignedIn);
+        if (isSignedIn) {
+            $("#state_auth").css('display', 'none');
+            $("#state_pick").css('display', 'block');
+            $("#account_email").text(gapi.auth2.getAuthInstance().currentUser.get().getBasicProfile().getEmail());
+            afterLogin();
+        } else {
+            $("#state_auth").css('display','block');
+            $("#state_pick").css('display', 'none');
+            $("#account_email").text("(not logged in)");
+        }
+    }
+              
+    
+    function initAnalytics(cb) 
+    {
+        gapi.analytics.ready(function() {
+            console.log("INFO: analytics API ready");
+            cb(null);
+        });
+    }
+    
+    function initProfileList(cb) {
+        //LATER: spinner in $("profile_list");
+        $.ajax("https://www.googleapis.com/analytics/v3/management/accountSummaries", 
+            { 
+                data: { "access_token": gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token, "max-results": 5 },
+                error: function(req, msg, err) { console.log("ERROR: " + msg, err); cb(err); },
+                success: function(data, msg, req) { 
+                    var profiles = {};
+                    //console.log("INFO: success (" + msg + ")", data); 
+                    console.log("INFO: user is '" + data.username + "'");
+                    for (var accountLoop = 0; accountLoop < data.items.length; accountLoop++) {
+                        var account = data.items[accountLoop];
+                        for (var propertyLoop = 0; propertyLoop < account.webProperties.length; propertyLoop++) {
+                            var property = account.webProperties[propertyLoop];
+                            for (var profileLoop = 0; profileLoop < property.profiles.length; profileLoop++) {
+                                var profile = property.profiles[profileLoop];
+                                //console.log("INFO: " + account.name + " > " + property.name + " > " + profile.name + " (" + profile.id + ")");
+                                profiles["ga:" + profile.id] = { "id": profile.id, "description": account.name + " > " + property.name + " > " + profile.name, is_first: profileLoop == 0 };
+                            }
+                        }
+                    }
+                    context.profiles = profiles;
+                    cb(null, context);
+                }
+            });
+    }
+    
+    function initMap(cb) {
+        console.log("INFO: initializing map");
+
+        if ($("#map").length > 0) {
+            console.log("INFO: using previous initialization");
+            cb(null);
+            return;
+        }
+
+        $("body").append($("<div>").attr("class", "map_yes").attr("id", "map"));
+        //$("#map").append($("<button>").attr("class", "btn btn-secondary margin10").attr("id", "map_exit"));
+
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: { lat: 0, lng: 0 },
+          //scrollwheel: false,
+          disableDefaultUI: true,
+          //draggable: false,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          zoom: 2
+        });
+
+        context.dayNightOverlay = new DayNightOverlay({
+            map: map,
+            fillColor: 'rgba(0,0,0,0.25)'
+        });
+
+        var heatmap = new google.maps.visualization.HeatmapLayer({
+            data: [],
+            map: map,
+            opacity: 1
+        });
+
+        heatmap.set('radius', 10);
+        heatmap.set('gradient', [
+            'rgba(0, 255, 255, 0)',
+            'rgba(0, 255, 255, 1)',
+            'rgba(0, 191, 255, 1)',
+            'rgba(0, 127, 255, 1)',
+            'rgba(0, 63, 255, 1)',
+            'rgba(0, 0, 255, 1)',
+            'rgba(0, 0, 223, 1)',
+            'rgba(0, 0, 191, 1)',
+            'rgba(0, 0, 159, 1)',
+            'rgba(0, 0, 127, 1)',
+            'rgba(63, 0, 91, 1)',
+            'rgba(127, 0, 63, 1)',
+            'rgba(191, 0, 31, 1)',
+            'rgba(255, 0, 0, 1)'
+        ]);
+        google.maps.event.addListenerOnce(map, 'idle', function(){
+            console.log("DEBUG: map idle");
+            cb(null);
+        });
+
+        google.maps.event.addListener(map, 'click', function() { $("#map_exit").show(); });
+        google.maps.event.addListener(map, 'mousemove', function() { $("#map_exit").show(); });
+        
+        context.heatmap = heatmap;
+    }
+
+    function initControls(cb) {
+        console.log("DEBUG: initControls");
+
+        context.heatmap.map.controls[google.maps.ControlPosition.TOP_RIGHT].push($("<button>").on("click", hideMap).text("Exit").attr("class", "btn btn-secondary btn-sm margin10").attr("id", "map_exit")[0]);
+        if (context.total_location != "NONE") {
+            context.heatmap.map.controls[google.maps.ControlPosition[context.total_location]].push($("<span>").attr("id", "total_count").attr("class", "total_count")[0]);
+        }
+        context.dayNightOverlay.fillColor_ = 'rgba(0,0,0,' + context.night_opacity + ')';
+        context.dayNightOverlay.setDate(new Date()); // force refresh
+
+        if (cb) {
+            cb(null);
+        }
+    }
+
+    function clearControls() {
+        console.log("DEBUG: clearControls");
+
+        context.heatmap.map.controls[google.maps.ControlPosition.TOP_RIGHT].clear();
+        if (context.total_location != "NONE") {
+            context.heatmap.map.controls[google.maps.ControlPosition[context.total_location]].clear();
+        }
+    }
+
+
+    function hideMap() {
+        console.log("DEBUG: hideMap");
+        closeStatus();
+        clearControls();
+        $("body").css("overflow", "");
+        $(".map_no").css("display", "block");
+        $(".map_yes").css("display", "none");
+        stopTimer();
+    }
+    
+    function drawProfileList(cb) {
+        $("#profile_list").empty();
+        for (var profile_id in context.profiles) {
+            var profile = context.profiles[profile_id];
+            var checkbox = $("<input>").attr("type", "checkbox").attr("name", "profile").attr("value", profile_id);
+                
+            var row = $("<tr>")
+                .append($("<td>")
+                    .append(checkbox)
+                    )
+                .append($("<td>").text(profile.description))
+                .append($("<td>").text(profile.id))
+                ;
+            $("#profile_list").append(row);
+        }
+        for (var profile_id in context.selected_profiles)
+        {
+            var profile = context.profiles[context.selected_profiles[profile_id]];
+            console.log("INFO: profile=" + profile_id + " " + JSON.stringify(profile));
+            $("input[value=\"" + context.selected_profiles[profile_id] + "\"]").attr("checked", true);
+        }
+        if (cb != null) {
+            cb(null);
+        }
+    }
+
+    function initOptions(cb) {
+        $("select[name=total_location]").val(context.total_location);
+        $("select[name=night_opacity]").val(context.night_opacity);
+        $("input[name=show_status]").prop("checked", context.show_status == "Y")
+        if (cb) {
+            cb(null);
+        }
+    }
+    
+    function showMap(cb) {
+        $(".map_no").css("display", "none");
+        $(".map_yes").css("display", "block");
+        $("body").css("overflow", "hidden");
+        if (cb) {
+            cb(null);
+        }
+    }
+
+    function startTimer(cb) {
+        console.log("DEBUG: startTimer");
+        context.timer = window.setInterval(onTick, 60*1000);
+        if (cb) {
+            cb(null);
+        }
+    }
+
+    function stopTimer(cb) {
+        console.log("DEBUG: stopTimer");
+        if (context.timer != null) {
+            window.clearInterval(context.timer);
+            delete context.timer;
+        }
+        if (cb) {
+            cb(null);
+        }
+    }
+    function onTick() {
+        console.log("DEBUG: onTick: " + new Date().toISOString());
+        updateMap();
+        if (gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse() == null
+            || gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().expires_in < 600) {
+            console.log("INFO: reauthorizing");
+            gapi.auth2.getAuthInstance().currentUser.get().reloadAuthResponse().then(function() {
+                console.log("INFO: reauth success");
+                getRealTimeData();
+            });
+        }
+        else {
+            getRealTimeData();
+        }
+        $("#map_exit").hide();
+    }
+    
+    function resizeMap(cb) {
+        console.log("INFO: resize");
+        if (cb) {
+            cb(null);
+        }
+    }
+    
+    function updateMap(cb) {
+        if (context.dayNightOverlay) {
+            context.dayNightOverlay.setDate(new Date());
+        }
+    }
+
+    function openStatus(max) {
+        context.status_max = max;
+        context.status_count = 0;
+        if (context.show_status == "Y") {
+            context.notification = alertify.message("Loading 0 of " + max + "...", 0);
+        }
+    }
+
+    function updateStatus() {
+        context.status_count = context.status_count + 1;
+        if (context.notification && context.notification != null) {
+            context.notification.setContent("Loading " + context.status_count + " of " + context.status_max + "...");
+        }
+    }
+
+    function closeStatus() {
+        if (context.notification != null) {
+            context.notification.dismiss();
+            context.notification = null;
+        }
+    }
+
+    
+    function getRealTimeData(cb) {
+        console.log("INFO: getRealTimeData start");
+        openStatus(context.selected_profiles.length);
+
+        async.map(context.selected_profiles, getRealTimeDataOne, function(err, results) {
+            console.log("INFO: getRealTimeData end");
+            closeStatus();
+            updateHeatMap(results);
+            if (cb) {
+                cb();
+            }
+        });
+    }
+    
+    function getRealTimeDataOne(account, cb) {
+        console.log("INFO: getRealTimeDataOne " + account + " started");
+        $.ajax("https://content.googleapis.com/analytics/v3/data/realtime", 
+            {
+                data: { 
+                    "access_token": gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token,
+                    "start-date": "7daysAgo",
+                    "end-date": "yesterday",
+                    "metrics": "rt:activeUsers",
+                    "dimensions": "rt:latitude,rt:longitude",
+                    "ids": account
+                    },
+                error: function(req, msg, err) {
+                    console.log("ERROR: getRealTimeDataOne failed", msg, err, req);
+                    alertify.error(req.responseJSON.error.errors[0].message + " (code=" + req.responseJSON.error.code + ")", 3);
+                    cb(err);
+                    },
+                success: function(data, msg, req) {
+                    updateStatus();
+                    console.log("INFO: getRealTimeDataOne " + account + " success"); //, data, msg);
+                    cb(null, data.rows);
+                    }
+            });
+    }
+    
+    function updateHeatMap(arrayOfArrays) {
+    
+        console.log("INFO: updateHeatMap");
+    
+        var newHeatMapData = [];
+        var bounds = new google.maps.LatLngBounds();
+        var total = 0;
+
+        for (var rows of arrayOfArrays) {
+            if (rows) {
+                total = total + rows.length;
+                for (var row of rows) {
+                    if (row[0] == 0 && row[1] == 0) {
+                        console.log("WARNING: skipping user with no geolocation");
+                        continue;
+                    }
+                    var latlng = new google.maps.LatLng(row[0], row[1]);
+                    newHeatMapData.push(latlng);
+                    bounds.extend(latlng);
+                }
+            }
+        }
+
+        console.log("INFO: # of active users=" + total);
+        $("#total_count").text(total);
+
+        if (newHeatMapData.length == 0) {
+            console.log("WARNING: No data for heatmap");
+            context.heatmap.setData([]);
+            //LATER: zoom out?
+            return;
+        }
+        //console.log("INFO: updating heat map", newHeatMapData);
+
+        context.heatmap.setData(newHeatMapData);
+        context.heatmap.map.fitBounds(bounds);
+    }
+
+    function dumpContext(cb) {
+        console.log("INFO: context", context);
+        if (cb) {
+            cb(null, context);
+        }
+    }
+    
+
+    function selectProfiles() {
+        console.log("DEBUG: selectProfiles");
+        context.selected_profiles = $("input[name=profile]:checked").map(function() { return $(this).val(); }).get();
+        localStorage.setItem("selected_profiles", JSON.stringify(context.selected_profiles));
+        context.total_location = $("select[name=total_location]").val();
+        localStorage.setItem("total_location", context.total_location);
+        context.night_opacity = $("select[name=night_opacity]").val();
+        localStorage.setItem("night_opacity", context.night_opacity);
+        context.show_status = $("input[name=show_status]").is(':checked') ? "Y" : "N";
+        localStorage.setItem("show_status", context.show_status);
+        ga('send', { hitType: 'event', eventCategory: 'User', eventAction: 'click', eventLabel: 'showmap', eventValue: context.selected_profiles.length });
+        dumpContext();
+        doMap();
+    }
+
+    function doMap() {
+        console.log("DEBUG: doMap");
+        async.series([
+            showMap,
+            initMap,
+            initControls,
+            dumpContext,
+            getRealTimeData,
+            startTimer
+        ], function (err, results) {
+            console.log("INFO: doMap complete", err, results);
+        });
+    }
+    
+    function toggleAllProfiles() {
+    console.log("toogle");
+        var checkboxes = $("input[name=profile]");
+        checkboxes.attr("checked", !checkboxes.attr("checked"));
+    }
+    
+    async function afterLogin(fromOnload) {
+        console.log("INFO: after login");
+        initProfileList(function() {
+            drawProfileList();
+
+            if ($("input[name=profile]:checked").length > 0) {
+                console.log("DEBUG: automatically showing map");
+                ga('send', {
+                    hitType: 'event',
+                    eventCategory: 'User',
+                    eventAction: 'onload',
+                    eventLabel: 'showmap',
+                    eventValue: context.selected_profiles.length
+                });
+                doMap();
+            }
+        });
+    }
+    
+    
+    function init() {
+        console.log("DEBUG: init()");
+        initContext();
+        initOptions();
+        $(".profile_select_button").on('click', selectProfiles);
+        $("#profile_toggle_all").on('click', toggleAllProfiles);
+        $("#login_button").on('click', onLoginClick);
+        $("#logout_button").on('click', onLogoutClick);
+        
+        async.series([
+            initGoogleApiLoad,
+            initGoogleApiInit,
+        ], function (err, results) {
+            console.log("INFO: init complete", err, results);
+        });
+    }
+
+    console.log("DEBUG: script compiled");
+    $( document ).ready(function() {
+        console.log("DEBUG: ready");
+        init();
+    });
+</script>
+
+<div class="card text-center" id="state_auth">
+    <div class="card-block">
+        <h3>Sign in to Google Analytics</h3>
+        <button class="gauth btn btn-primary" id="login_button">Login to Google Analytics</button>
+        <p>Your data is secure: nothing is sent to HeatmapTV.</p>
+    </div>
+</div>
+
+<div class="card map_no" id="state_pick" style="display:none;">
+
+    <div class="card-block">
+        <form method="POST" action="#">
+            <p>Account: <span id="account_email"></span><button class="gauth btn btn-secondary" id="logout_button">Logout</button><br/>
+            <button class="btn btn-primary profile_select_button" type="button">Show Heatmap</button>
+            </p>
+
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-toggle="tab" href="#properties" role="tab">GA Properties</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#options" role="tab">Options</a>
+                </li>
+            </ul>
+            <p></p>
+
+            <div class="tab-content">
+                <div class="tab-pane active" id="properties" role="tabpanel">
+                    <table class="table table-striped table-bordered">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="profile_toggle_all" /></th>
+                                <th>Name</th>
+                                <th>ID</th>
+                            </tr>
+                        </thead>
+                      <tbody id="profile_list">
+                            <tr>
+                                <td colspan="3"><img src="/images/spinner.gif" alt=""/> Loading <span class="loadingCount">0</span>...</td>
+                            </tr>
+                      </tbody>
+                  </table>
+                </div>
+                <div class="tab-pane" id="options" role="tabpanel">
+                    <div class="form-group row">
+                        <label for="option-total-location" class="col-2 col-form-label">Total location</label>
+                        <div class="col-10">
+                            <select class="custom-select" name="total_location" id="option-total-location">
+                                <option value="TOP_CENTER">Top Center</option>
+                                <option value="TOP_LEFT">Top Left</option>
+                                <!--<option value="BOTTOM_LEFT">Bottom Left</option>-->
+                                <option value="BOTTOM_CENTER">Bottom Center</option>
+                                <!--<option value="BOTTOM_RIGHT">Bottom Right</option>-->
+                                <option value="NONE">Do not show total</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label for="option-night-opacity" class="col-2 col-form-label">Nightime overlay opacity</label>
+                        <div class="col-10">
+                            <select class="custom-select" name="night_opacity" id="option-night-opacity">
+                                <option value="0.25">Dark (25%)</option>
+                                <option value="0.10">Medium (10%)</option>
+                                <option value="0.05">Light (5%)</option>
+                                <option value="0.00">None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label for="option-show-status" class="col-2 col-form-label">Status messages</label>
+                        <div class="col-10">
+                            <input type="checkbox" name="show_status" id="option-show-status" value="Y"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-primary profile_select_button" type="button">Show Heatmap</button>
+        </form>
+    </div>
+</div>

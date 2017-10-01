@@ -1,0 +1,28 @@
+---
+layout: default
+title: Credits
+noadsense: true
+---
+
+<p>These are the things that I use to make and run this website</p>
+
+<p></p>
+
+<div class="row">
+    <table class="table table-striped">
+        <!--		<thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>-->
+        <tbody>
+        {% for credit in site.data.credits %}
+        <tr>
+            <td>{% if credit.id %}<a href="{{ credit.url }}"><img src="https://www.vectorlogo.zone/logos/{{ credit.id }}/{{credit.id}}-ar21.svg" alt="{{credit.name}} Icon"></a>{% endif %}</td>
+            <td><a href="{{ credit.url }}">{{ credit.name }}</a> - {{ credit.description }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,50 @@
+---
+title: Frequently Asked Questions (FAQ)
+h1: FAQ
+noadsense: true
+---
+<h3>What does this website do?</h3>
+<p>
+    It uses the Google Analytics real-time data API to get the locations of the users acccessing your website, and displays them
+    on a full-screen map as a heatmap (i.e. colors indicating the # of people at given location).  Here is a sample of what it will
+    look like in action:
+</p>
+
+<p class="text-lg-center"><a href="/index.html"><img style="max-width:30rem;" src="/images/tv.png" alt="Heatmap.TV in action" title="Heatmap.TV in action" /></a></p>
+
+<h3>How often does the map update?</h3>
+<p>Once per minute.</p>
+
+<h3>Why do I need to login to Google?</h3>
+<p>In order to access your Google Analytics data, you need to be logged in to a Google Account that can read the appropriate Google Analytics
+account/property/view.</p>
+
+<h3>Will it work if I am not using Google Analytics on my websites?</h3>
+<p>No</p>
+
+<h3>Is my data safe?</h3>
+<p>Your data is only accessed by the browser, not by the Heatmap.TV server (tech tidbit: it is a static website).</p>
+
+<p>If you are concerned about the security of the PC or TV showing the map, I recommend making a dedicated user
+in Google Analytics with read-only permission to just the accounts/properties/views that you want to display on the TV.</p>
+
+<p>At my work, for example, we created a new user <code>lobbytv@example.com</code> with rights to GAnalytics views of our production-ready
+websites.</p>
+
+<h3>Why is there a limit of 10 properties?</h3>
+<p>Google has a 10 hits/minute rate-limit on the real-time analytics API.  I am considering ways around this that would not increase the
+refresh interval.</p>
+
+<h3>What did you use to make this?</h3>
+<p>Please see the <a href="credits.html">Credits</a> page!  You can see the actual source code at <a href="https://www.github.com/fileformat/heatmaptv">GitHub</a>.</p>
+
+<h3>I have a question that isn't answered here.  What can I do?</h3>
+<p>Please <a href="contact.html">Contact me</a>!</p>
+
+<!--
+<h3>Q?</h3>
+<p>A</p>
+
+<h3>Q?</h3>
+<p>A</p>
+-->
