@@ -122,7 +122,11 @@ noadsense: true
         $.ajax("https://www.googleapis.com/analytics/v3/management/accountSummaries", 
             { 
                 data: { "access_token": gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token, "max-results": 5 },
-                error: function(req, msg, err) { console.log("ERROR: " + msg, err); cb(err); },
+                error: function(req, msg, err) {
+                    console.log("ERROR: " + msg, err);
+                    ga('send', { hitType: 'event', eventCategory: 'Error', eventAction: 'initProfileList', eventLabel: err.message });
+                    cb(err);
+                },
                 success: function(data, msg, req) { 
                     var profiles = {};
                     //console.log("INFO: success (" + msg + ")", data); 
@@ -302,13 +306,16 @@ noadsense: true
         }
     }
     function onTick() {
+        ga('send', { hitType: 'event', eventCategory: 'System', eventAction: 'tick', eventLabel: 'login', eventValue: context.selected_profiles.length });
         console.log("DEBUG: onTick: " + new Date().toISOString());
         updateMap();
         if (gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse() == null
             || gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().expires_in < 600) {
             console.log("INFO: reauthorizing");
+            ga('send', { hitType: 'event', eventCategory: 'System', eventAction: 'auth', eventLabel: 'reauth-start', eventValue: context.selected_profiles.length });
             gapi.auth2.getAuthInstance().currentUser.get().reloadAuthResponse().then(function() {
                 console.log("INFO: reauth success");
+                ga('send', { hitType: 'event', eventCategory: 'System', eventAction: 'auth', eventLabel: 'reauth-success', eventValue: context.selected_profiles.length });
                 getRealTimeData();
             });
         }
@@ -383,6 +390,7 @@ noadsense: true
                 error: function(req, msg, err) {
                     console.log("ERROR: getRealTimeDataOne failed", msg, err, req);
                     alertify.error(req.responseJSON.error.errors[0].message + " (code=" + req.responseJSON.error.code + ")", 3);
+                    ga('send', { hitType: 'event', eventCategory: 'Error', eventAction: 'getRealTimeDataOne', eventLabel: err.message });
                     cb(err);
                     },
                 success: function(data, msg, req) {
