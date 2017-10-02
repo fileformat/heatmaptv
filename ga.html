@@ -121,7 +121,7 @@ noadsense: true
         //LATER: spinner in $("profile_list");
         $.ajax("https://www.googleapis.com/analytics/v3/management/accountSummaries", 
             { 
-                data: { "access_token": gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token, "max-results": 5 },
+                data: { "access_token": gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token, "max-results": 100 },
                 error: function(req, msg, err) {
                     console.log("ERROR: " + msg, err);
                     ga('send', { hitType: 'event', eventCategory: 'Error', eventAction: 'initProfileList', eventLabel: err.message });
