@@ -133,16 +133,29 @@ noadsense: true
                 },
                 success: function(data, msg, req) { 
                     var profiles = {};
-                    //console.log("INFO: success (" + msg + ")", data); 
+                    console.log("INFO: success (" + msg + ")", data);
                     console.log("INFO: user is '" + data.username + "'");
                     for (var accountLoop = 0; accountLoop < data.items.length; accountLoop++) {
                         var account = data.items[accountLoop];
-                        for (var propertyLoop = 0; propertyLoop < account.webProperties.length; propertyLoop++) {
-                            var property = account.webProperties[propertyLoop];
-                            for (var profileLoop = 0; profileLoop < property.profiles.length; profileLoop++) {
-                                var profile = property.profiles[profileLoop];
-                                //console.log("INFO: " + account.name + " > " + property.name + " > " + profile.name + " (" + profile.id + ")");
-                                profiles["ga:" + profile.id] = { "id": profile.id, "description": account.name + " > " + property.name + " > " + profile.name, is_first: profileLoop == 0 };
+                        if (account.webProperties == null ||  account.webProperties.length == 0) {
+                            alertify.error("No webproperties found for account " + account.name + " (" + account.id + ")");
+                        } else {
+                            for (var propertyLoop = 0; propertyLoop < account.webProperties.length; propertyLoop++) {
+                                var property = account.webProperties[propertyLoop];
+                                if (property.profiles == null || property.profiles.length == 0) {
+                                    alertify.error("No profiles found for account " + account.name + " (" + account.id + "), property " + property.name);
+                                }
+                                else {
+                                    for (var profileLoop = 0; profileLoop < property.profiles.length; profileLoop++) {
+                                        var profile = property.profiles[profileLoop];
+                                        //console.log("INFO: " + account.name + " > " + property.name + " > " + profile.name + " (" + profile.id + ")");
+                                        profiles["ga:" + profile.id] = {
+                                            "id": profile.id,
+                                            "description": account.name + " > " + property.name + " > " + profile.name,
+                                            is_first: profileLoop == 0
+                                        };
+                                    }
+                                }
                             }
                         }
                     }
