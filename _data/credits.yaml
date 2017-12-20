@@ -1,10 +1,12 @@
 - name: Alertify.js
   description: Status and error messages
   url: http://alertifyjs.com/
+  id: alertifyjs
 
 - name: async.js
   description: utilities for asynchronous JavaScript
   url: https://github.com/caolan/async
+  id: asyncjs
 
 - name: Bootstrap
   description: HTML/CSS Framework
