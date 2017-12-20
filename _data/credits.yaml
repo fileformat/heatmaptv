@@ -45,7 +45,7 @@
 - name: Google Maps
   description: the map!
   url: http://www.google.com/maps
-  id: google
+  id: google_maps
 
 - name: Jekyll
   description: Static site generator
