@@ -405,7 +405,10 @@ noadsense: true
                     "ids": account
                     },
                 error: function(req, msg, err) {
-                    console.log("ERROR: getRealTimeDataOne " + account + " failed", msg, err, req);
+                    console.log("ERROR: getRealTimeDataOne " + account + " failed");
+                    console.log("ERROR: msg=" + JSON.stringify(msg), msg);
+                    console.log("ERROR: err=" + JSON.stringify(err), err);
+                    console.log("ERROR: req=" + JSON.stringify(req), req);
                     updateStatus();
                     alertify.error(req.responseJSON.error.errors[0].message + " (code=" + req.responseJSON.error.code + ")", 15);
                     ga('send', { hitType: 'event', eventCategory: 'Error', eventAction: 'getRealTimeDataOne', eventLabel: err.message });
