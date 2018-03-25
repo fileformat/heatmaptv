@@ -7,7 +7,7 @@ permalink: /news/:year/:month/:day/:title.html
 production_url: https://www.heatmap.tv
 title: Heatmap TV
 markdown: kramdown
-gems:
+plugins:
   - jekyll-redirect-from
 defaults:
   -
