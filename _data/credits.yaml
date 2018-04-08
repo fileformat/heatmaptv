@@ -60,6 +60,7 @@
 - name: Noah Marcuse
   description: logo and favicon
   url: http://noah.marcuse.ink/
+  id: marcuse_ink
 
 - name: Travis-CI
   description: continuous integration and deployment
@@ -70,11 +71,6 @@
   description: HTML file validation
   url: https://validator.w3.org/
   id: w3c_validator
-
-- name: Wikimedia Commons
-  description: Animated spinner
-  url: https://commons.wikimedia.org/wiki/File:Android_style_loader.gif
-  id: wikimedia_commons
 
 - name: Wufoo
   description: Contact form
